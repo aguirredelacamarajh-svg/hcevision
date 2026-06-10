@@ -30,6 +30,15 @@ interface SavedExam {
   attempted_at: string | null;
 }
 
+interface Attempt {
+  id: string;
+  exam_id: string;
+  score: number;
+  num_questions: number;
+  time_seconds: number | null;
+  attempted_at: string;
+}
+
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const COLORS: Record<string, { chip: string; dot: string; btn: string }> = {
@@ -74,6 +83,7 @@ export default function CampusPage() {
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [exams, setExams] = useState<SavedExam[]>([]);
+  const [attemptsByExam, setAttemptsByExam] = useState<Record<string, Attempt[]>>({});
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -105,9 +115,26 @@ export default function CampusPage() {
         supabase.from("saved_exams").select("*").order("created_at", { ascending: false }).range(0, PAGE_SIZE - 1),
       ]);
 
+      const loadedExams = examsData ?? [];
       setFolders(foldersData ?? []);
-      setExams(examsData ?? []);
-      setHasMore((examsData ?? []).length === PAGE_SIZE);
+      setExams(loadedExams);
+      setHasMore(loadedExams.length === PAGE_SIZE);
+
+      if (loadedExams.length > 0) {
+        const ids = loadedExams.map((e: SavedExam) => e.id);
+        const { data: attemptsData } = await supabase
+          .from("exam_attempts")
+          .select("id, exam_id, score, num_questions, time_seconds, attempted_at")
+          .in("exam_id", ids)
+          .order("attempted_at", { ascending: false });
+        const map: Record<string, Attempt[]> = {};
+        for (const a of (attemptsData ?? [])) {
+          if (!map[a.exam_id]) map[a.exam_id] = [];
+          map[a.exam_id].push(a as Attempt);
+        }
+        setAttemptsByExam(map);
+      }
+
       setLoading(false);
     }
     load();
@@ -123,6 +150,22 @@ export default function CampusPage() {
     const next = data ?? [];
     setExams((prev) => [...prev, ...next]);
     setHasMore(next.length === PAGE_SIZE);
+
+    if (next.length > 0) {
+      const ids = next.map((e: SavedExam) => e.id);
+      const { data: attemptsData } = await supabase
+        .from("exam_attempts")
+        .select("id, exam_id, score, num_questions, time_seconds, attempted_at")
+        .in("exam_id", ids)
+        .order("attempted_at", { ascending: false });
+      const newMap: Record<string, Attempt[]> = {};
+      for (const a of (attemptsData ?? [])) {
+        if (!newMap[a.exam_id]) newMap[a.exam_id] = [];
+        newMap[a.exam_id].push(a as Attempt);
+      }
+      setAttemptsByExam((prev) => ({ ...prev, ...newMap }));
+    }
+
     setLoadingMore(false);
   }
 
@@ -325,14 +368,23 @@ export default function CampusPage() {
                   {visibleExams.map((exam) => {
                     const folder = folders.find((f) => f.id === exam.folder_id);
                     const col = folder ? (COLORS[folder.color] ?? COLORS.blue) : null;
-                    const pct = exam.score != null ? Math.round((exam.score / exam.num_questions) * 100) : null;
+                    const attempts = attemptsByExam[exam.id] ?? [];
+                    const last = attempts[0]; // DESC por attempted_at
+                    const lastScore = last?.score ?? exam.score;
+                    const lastNumQ = last?.num_questions ?? exam.num_questions;
+                    const pct = lastScore != null ? Math.round((lastScore / lastNumQ) * 100) : null;
+                    const bestPct = attempts.length > 0
+                      ? Math.max(...attempts.map(a => Math.round((a.score / a.num_questions) * 100)))
+                      : pct;
+                    const attemptCount = attempts.length > 0 ? attempts.length : (exam.score != null ? 1 : 0);
+                    const displayDate = last?.attempted_at ?? exam.attempted_at ?? exam.created_at;
+                    const displayTime = last?.time_seconds ?? exam.time_seconds;
                     return (
                       <div
                         key={exam.id}
                         onClick={() => setReviewExam(exam)}
                         className="bg-white border border-slate-200 rounded-2xl p-5 cursor-pointer hover:shadow-md hover:border-slate-300 transition group"
                       >
-
                         {/* Nivel + folder */}
                         <div className="flex items-center justify-between mb-3">
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${NIVEL_BADGE[exam.nivel] ?? "bg-slate-100 text-slate-600"}`}>
@@ -354,7 +406,7 @@ export default function CampusPage() {
                         {pct != null && (
                           <div className="mb-3">
                             <div className="flex justify-between text-xs text-slate-500 mb-1">
-                              <span>{exam.score}/{exam.num_questions} correctas</span>
+                              <span>{lastScore}/{lastNumQ} correctas</span>
                               <span>{pct}%</span>
                             </div>
                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -363,14 +415,18 @@ export default function CampusPage() {
                                 style={{ width: `${pct}%` }}
                               />
                             </div>
+                            <div className="flex justify-between text-xs text-slate-400 mt-1">
+                              <span>{bestPct != null && bestPct !== pct ? `Mejor: ${bestPct}%` : ""}</span>
+                              <span>{attemptCount === 1 ? "1 intento" : `${attemptCount} intentos`}</span>
+                            </div>
                           </div>
                         )}
 
                         {/* Meta */}
                         <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span>{relativeDate(exam.attempted_at ?? exam.created_at)}</span>
-                          {exam.time_seconds != null && (
-                            <span className="font-mono">{formatTime(exam.time_seconds)}</span>
+                          <span>{relativeDate(displayDate)}</span>
+                          {displayTime != null && (
+                            <span className="font-mono">{formatTime(displayTime)}</span>
                           )}
                         </div>
                       </div>
@@ -401,6 +457,7 @@ export default function CampusPage() {
         <ReviewPanel
           exam={reviewExam}
           folders={folders}
+          attempts={attemptsByExam[reviewExam.id] ?? []}
           onClose={() => setReviewExam(null)}
           onDelete={() => deleteExam(reviewExam.id)}
           onRename={async (newTitle) => {
@@ -424,17 +481,20 @@ export default function CampusPage() {
 function ReviewPanel({
   exam,
   folders,
+  attempts,
   onClose,
   onDelete,
   onRename,
 }: {
   exam: SavedExam;
   folders: Folder[];
+  attempts: Attempt[];
   onClose: () => void;
   onDelete: () => void;
   onRename: (newTitle: string) => void;
 }) {
   const folder = folders.find((f) => f.id === exam.folder_id);
+  const lastAttempt = attempts[0]; // DESC por attempted_at
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(exam.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -495,9 +555,9 @@ function ReviewPanel({
               </button>
             )}
             <p className="text-sm text-slate-400 mt-1">
-              {relativeDate(exam.attempted_at ?? exam.created_at)}
-              {exam.time_seconds != null && ` · ${formatTime(exam.time_seconds)}`}
-              {exam.score != null && ` · ${exam.score}/${exam.num_questions} correctas`}
+              {relativeDate(lastAttempt?.attempted_at ?? exam.attempted_at ?? exam.created_at)}
+              {(lastAttempt?.time_seconds ?? exam.time_seconds) != null && ` · ${formatTime((lastAttempt?.time_seconds ?? exam.time_seconds)!)}`}
+              {(lastAttempt?.score ?? exam.score) != null && ` · ${lastAttempt?.score ?? exam.score}/${lastAttempt?.num_questions ?? exam.num_questions} correctas`}
             </p>
           </div>
           <button
@@ -509,23 +569,59 @@ function ReviewPanel({
         </div>
 
         {/* Score bar */}
-        {exam.score != null && (
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 shrink-0">
-            <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-green-600 font-semibold">{exam.score} correctas</span>
-              <span className="text-red-500 font-semibold">{exam.num_questions - exam.score} incorrectas</span>
+        {(() => {
+          const s = lastAttempt?.score ?? exam.score;
+          const nq = lastAttempt?.num_questions ?? exam.num_questions;
+          if (s == null) return null;
+          return (
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 shrink-0">
+              <div className="flex justify-between text-sm mb-1.5">
+                <span className="text-green-600 font-semibold">{s} correctas</span>
+                <span className="text-red-500 font-semibold">{nq - s} incorrectas</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-green-500 rounded-full"
+                  style={{ width: `${(s / nq) * 100}%` }}
+                />
+              </div>
             </div>
-            <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-green-500 rounded-full"
-                style={{ width: `${(exam.score / exam.num_questions) * 100}%` }}
-              />
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Preguntas */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Historial de intentos */}
+          {attempts.length > 0 && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Historial · {attempts.length} {attempts.length === 1 ? "intento" : "intentos"}
+                </p>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {[...attempts].reverse().map((a, i) => {
+                  const pct = Math.round((a.score / a.num_questions) * 100);
+                  return (
+                    <div key={a.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs text-slate-400 w-16 shrink-0">Intento {i + 1}</span>
+                        <span className="font-semibold text-slate-700">{a.score}/{a.num_questions}</span>
+                        <span className={`text-xs font-semibold ${pct >= 70 ? "text-green-600" : pct >= 50 ? "text-amber-600" : "text-red-500"}`}>
+                          {pct}%
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-slate-400">
+                        {a.time_seconds != null && <span className="font-mono">{formatTime(a.time_seconds)}</span>}
+                        <span>{relativeDate(a.attempted_at)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {exam.questions.map((q, i) => {
             const ans = exam.answers?.[i];
             const userIdx = ans?.elegida ?? -1;
