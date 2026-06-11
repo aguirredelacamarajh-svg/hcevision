@@ -41,14 +41,16 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
 
 ## Hoja de ruta
 
-### Fase 2 — Memoria académica (en curso)
+### Fase 2 — Memoria académica (completa)
 - ✅ **Repaso espaciado real**: `lib/srs.ts` (SM-2 simplificado, escalera 0/1/3/7/14/30/60 días),
   sesión global en `/app/repaso` y banner "Repasos pendientes" en el campus.
 - ✅ **Examen de refuerzo**: `/api/refuerzo` toma los errores del último intento, genera 10
   preguntas nuevas sobre esos conceptos y las guarda como examen "🎯 Refuerzo · ...".
   Botón en el panel de revisión del campus.
-- ⏳ **Dashboard de aprendizaje**: evolución de notas por material/carpeta, racha de estudio,
-  temas dominados vs. pendientes.
+- ✅ **Dashboard de aprendizaje** (`/app/progreso`): racha de estudio (días con intentos o
+  repasos), evolución de notas (SVG, últimos 30 intentos), media a 30 días, tarjetas dominadas
+  (escalón SRS ≥ 3 = intervalo 7+ días) y desglose por material con temas
+  dominado / en progreso / pendiente.
 
 ### Fase 3 — Tutor inteligente
 - Chat por material: preguntas con contexto del material y del desempeño del usuario.

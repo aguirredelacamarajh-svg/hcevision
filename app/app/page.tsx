@@ -249,6 +249,12 @@ export default function CampusPage() {
         </span>
         <div className="flex items-center gap-3">
           <Link
+            href="/app/progreso"
+            className="text-sm text-slate-500 hover:text-slate-700 font-medium transition hidden sm:block"
+          >
+            📈 Progreso
+          </Link>
+          <Link
             href="/app/material/nuevo"
             className="px-4 py-2 rounded-xl border border-blue-300 text-blue-700 text-sm font-semibold hover:bg-blue-50 transition hidden sm:block"
           >
