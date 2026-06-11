@@ -69,3 +69,37 @@ export interface Flashcard {
 }
 
 export type FlashcardRating = 1 | 2 | 3; // 1 otra vez · 2 difícil · 3 bien
+
+// ─── Tutor ───────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// ─── Casos clínicos ──────────────────────────────────────────────────────────
+
+export const FASES_CASO = [
+  "anamnesis",
+  "exploración",
+  "pruebas",
+  "diagnóstico",
+  "tratamiento",
+] as const;
+export type FaseCaso = (typeof FASES_CASO)[number];
+
+export interface PasoCaso {
+  fase: FaseCaso;
+  situacion: string; // nueva información que se revela en esta fase
+  pregunta: string;
+  opciones: string[]; // exactamente 4
+  correcta: number; // índice 0-3
+  feedback: string; // por qué la correcta es correcta y las demás no
+}
+
+export interface CasoClinico {
+  titulo: string;
+  presentacion: string; // viñeta inicial del paciente
+  pasos: PasoCaso[]; // exactamente 5, uno por fase en orden
+  perlas: string[]; // 3-5 puntos clave para llevarse
+}

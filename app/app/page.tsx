@@ -294,28 +294,51 @@ export default function CampusPage() {
           </div>
         ) : (
           <>
-            {/* ── Repasos pendientes ── */}
-            {dueCount > 0 && (
-              <Link
-                href="/app/repaso"
-                className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 hover:border-amber-300 hover:shadow-md transition group animate-fade-up"
-              >
-                <div className="flex items-center gap-4 min-w-0">
-                  <span className="text-3xl shrink-0">🔁</span>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-800">
-                      {dueCount === 1 ? "Tenés 1 tarjeta para repasar hoy" : `Tenés ${dueCount} tarjetas para repasar hoy`}
-                    </p>
-                    <p className="text-sm text-slate-500 truncate">
-                      Repasar a tiempo es lo que fija la memoria a largo plazo.
-                    </p>
+            {/* ── Hoy te conviene ── */}
+            {(() => {
+              // Examen más flojo según el último intento (solo si suspende el umbral del 70%)
+              let weakExam: SavedExam | null = null;
+              let weakPct = 70;
+              for (const e of exams) {
+                const last = (attemptsByExam[e.id] ?? [])[0];
+                const score = last?.score ?? e.score;
+                const nq = last?.num_questions ?? e.num_questions;
+                if (score == null) continue;
+                const pct = Math.round((score / nq) * 100);
+                if (pct < weakPct) { weakPct = pct; weakExam = e; }
+              }
+
+              if (dueCount === 0 && !weakExam) return null;
+              return (
+                <section className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 animate-fade-up">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-3">
+                    🧭 Hoy te conviene
+                  </p>
+                  <div className="space-y-2.5">
+                    {dueCount > 0 && (
+                      <Link href="/app/repaso"
+                        className="flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-200 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition group">
+                        <p className="text-sm text-slate-700 min-w-0">
+                          <span className="font-semibold">Repasar {dueCount === 1 ? "1 tarjeta" : `${dueCount} tarjetas`}</span>
+                          <span className="text-slate-400"> · repasar a tiempo fija la memoria</span>
+                        </p>
+                        <span className="shrink-0 text-sm font-semibold text-amber-600 group-hover:text-amber-700">🔁 Repasar →</span>
+                      </Link>
+                    )}
+                    {weakExam && (
+                      <button onClick={() => setReviewExam(weakExam)}
+                        className="w-full flex items-center justify-between gap-3 rounded-xl bg-white border border-slate-200 px-4 py-3 hover:border-amber-300 hover:shadow-sm transition group text-left">
+                        <p className="text-sm text-slate-700 min-w-0 truncate">
+                          <span className="font-semibold">Reforzar «{weakExam.title}»</span>
+                          <span className="text-slate-400"> · última nota {weakPct}%</span>
+                        </p>
+                        <span className="shrink-0 text-sm font-semibold text-amber-600 group-hover:text-amber-700">🎯 Abrir →</span>
+                      </button>
+                    )}
                   </div>
-                </div>
-                <span className="shrink-0 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold group-hover:bg-amber-600 transition">
-                  Repasar →
-                </span>
-              </Link>
-            )}
+                </section>
+              );
+            })()}
 
             {/* ── Carpetas ── */}
             <section className="mb-8">

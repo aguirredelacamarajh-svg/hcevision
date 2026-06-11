@@ -383,7 +383,19 @@ export default function MaterialPage() {
             )}
 
             {/* Acciones */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-10">
+              <Link href={`/app/material/${material.id}/tutor`}
+                className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-400 hover:shadow-md transition group">
+                <p className="text-2xl mb-2">🧑‍⚕️</p>
+                <p className="font-semibold text-slate-800 group-hover:text-blue-700">Tutor</p>
+                <p className="text-xs text-slate-400 mt-1">Preguntale o pedile que te tome la lección</p>
+              </Link>
+              <Link href={`/app/material/${material.id}/caso`}
+                className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-400 hover:shadow-md transition group">
+                <p className="text-2xl mb-2">🏥</p>
+                <p className="font-semibold text-slate-800 group-hover:text-blue-700">Caso clínico</p>
+                <p className="text-xs text-slate-400 mt-1">Simulación paso a paso con decisiones</p>
+              </Link>
               <Link href={`/app/nuevo?material=${material.id}`}
                 className="rounded-2xl border border-slate-200 bg-white p-5 hover:border-blue-400 hover:shadow-md transition group">
                 <p className="text-2xl mb-2">📝</p>

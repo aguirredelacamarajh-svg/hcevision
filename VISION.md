@@ -52,10 +52,16 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
   (escalón SRS ≥ 3 = intervalo 7+ días) y desglose por material con temas
   dominado / en progreso / pendiente.
 
-### Fase 3 — Tutor inteligente
-- Chat por material: preguntas con contexto del material y del desempeño del usuario.
-- Recomendación diaria: "hoy te conviene repasar X y hacer un examen corto de Y".
-- Casos clínicos interactivos paso a paso (anamnesis → pruebas → diagnóstico → tratamiento).
+### Fase 3 — Tutor inteligente (completa)
+- ✅ **Chat por material** (`/app/material/[id]/tutor` + `/api/tutor` con streaming): el tutor
+  recibe el material, su análisis y el desempeño real del estudiante (últimos intentos +
+  temas flojos/dominados según SRS). Responde solo con base en el material y puede tomar
+  la lección. Conversación en memoria (no persiste — candidato a tabla futura).
+- ✅ **Recomendación diaria** ("🧭 Hoy te conviene" en el campus): heurística sin coste de IA —
+  repasos pendientes según SRS + examen más flojo del último intento (umbral 70%).
+- ✅ **Casos clínicos interactivos** (`/app/material/[id]/caso` + `/api/caso`): 5 fases
+  (anamnesis → exploración → pruebas → diagnóstico → tratamiento), decisión con 4 opciones
+  y feedback razonado por fase, perlas finales. Filtro por tema opcional. No persiste.
 
 ### Fase 4 — Biblioteca y comunidad
 - Vista biblioteca dedicada con buscador y etiquetas.
