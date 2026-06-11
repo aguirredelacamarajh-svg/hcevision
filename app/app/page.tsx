@@ -29,6 +29,9 @@ interface SavedExam {
   answers: { elegida: number; acierto: boolean }[] | null;
   created_at: string;
   attempted_at: string | null;
+  // Compartir (migración 003 — opcionales hasta que se aplique)
+  is_public?: boolean;
+  share_id?: string;
 }
 
 interface Attempt {
@@ -248,6 +251,12 @@ export default function CampusPage() {
           HCE <span className="text-blue-600">Vision</span>
         </span>
         <div className="flex items-center gap-3">
+          <Link
+            href="/app/biblioteca"
+            className="text-sm text-slate-500 hover:text-slate-700 font-medium transition hidden sm:block"
+          >
+            📚 Biblioteca
+          </Link>
           <Link
             href="/app/progreso"
             className="text-sm text-slate-500 hover:text-slate-700 font-medium transition hidden sm:block"
@@ -631,6 +640,17 @@ export default function CampusPage() {
             );
             setReviewExam((e) => e ? { ...e, title: newTitle } : null);
           }}
+          onShareToggle={async (isPublic) => {
+            const { error } = await supabase
+              .from("saved_exams")
+              .update({ is_public: isPublic })
+              .eq("id", reviewExam.id);
+            if (error) return; // p. ej., migración 003 sin aplicar
+            setExams((prev) =>
+              prev.map((e) => e.id === reviewExam.id ? { ...e, is_public: isPublic } : e)
+            );
+            setReviewExam((e) => e ? { ...e, is_public: isPublic } : null);
+          }}
         />
       )}
     </div>
@@ -646,6 +666,7 @@ function ReviewPanel({
   onClose,
   onDelete,
   onRename,
+  onShareToggle,
 }: {
   exam: SavedExam;
   folders: Folder[];
@@ -653,6 +674,7 @@ function ReviewPanel({
   onClose: () => void;
   onDelete: () => void;
   onRename: (newTitle: string) => void;
+  onShareToggle: (isPublic: boolean) => void;
 }) {
   const router = useRouter();
   const folder = folders.find((f) => f.id === exam.folder_id);
@@ -660,6 +682,29 @@ function ReviewPanel({
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(exam.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Compartir + reportes de la comunidad
+  const supabase = createClient();
+  const [copied, setCopied] = useState(false);
+  const [reportCounts, setReportCounts] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    setCopied(false);
+    if (!exam.share_id) return; // migración 003 sin aplicar
+    supabase
+      .from("question_reports")
+      .select("question_index")
+      .eq("exam_id", exam.id)
+      .then(({ data }) => {
+        const counts: Record<number, number> = {};
+        for (const r of data ?? []) counts[r.question_index] = (counts[r.question_index] ?? 0) + 1;
+        setReportCounts(counts);
+      });
+  }, [exam.id]);
+
+  const shareUrl = exam.share_id
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/compartido/${exam.share_id}`
+    : null;
 
   // Examen de refuerzo a partir de los errores del último intento
   const [refuerzoLoading, setRefuerzoLoading] = useState(false);
@@ -813,6 +858,45 @@ function ReviewPanel({
             </div>
           )}
 
+          {/* Compartir */}
+          {shareUrl && (
+            <div className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">
+                    🤝 {exam.is_public ? "Compartido por enlace" : "Compartir examen"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {exam.is_public
+                      ? "Cualquiera con el enlace puede hacerlo (sin ver tus notas)."
+                      : "Generá un enlace público para tus compañeros."}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onShareToggle(!exam.is_public)}
+                  className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition ${exam.is_public
+                    ? "border border-slate-300 text-slate-600 hover:bg-slate-50"
+                    : "bg-blue-600 text-white hover:bg-blue-700"}`}
+                >
+                  {exam.is_public ? "Dejar de compartir" : "Compartir"}
+                </button>
+              </div>
+              {exam.is_public && (
+                <div className="mt-3 flex gap-2">
+                  <input readOnly value={shareUrl}
+                    onFocus={(e) => e.target.select()}
+                    className="flex-1 min-w-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 font-mono" />
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(shareUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                    className="shrink-0 px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 transition"
+                  >
+                    {copied ? "✓ Copiado" : "Copiar"}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Historial de intentos */}
           {attempts.length > 0 && (
             <div className="rounded-xl border border-slate-200 overflow-hidden">
@@ -855,6 +939,12 @@ function ReviewPanel({
                 <div className={`px-4 py-2.5 flex items-center gap-2 text-sm font-medium ${wasCorrect ? "bg-green-50 text-green-700" : ans ? "bg-red-50 text-red-600" : "bg-slate-50 text-slate-500"}`}>
                   <span>{wasCorrect ? "✅" : ans ? "❌" : "—"}</span>
                   <span>Pregunta {i + 1}</span>
+                  {reportCounts[i] > 0 && (
+                    <span className="ml-auto text-xs font-semibold text-amber-600"
+                      title="Reportes de la comunidad sobre esta pregunta">
+                      ⚠ {reportCounts[i]} {reportCounts[i] === 1 ? "reporte" : "reportes"}
+                    </span>
+                  )}
                 </div>
 
                 <div className="p-4">

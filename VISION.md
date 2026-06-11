@@ -63,10 +63,20 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
   (anamnesis → exploración → pruebas → diagnóstico → tratamiento), decisión con 4 opciones
   y feedback razonado por fase, perlas finales. Filtro por tema opcional. No persiste.
 
-### Fase 4 — Biblioteca y comunidad
-- Vista biblioteca dedicada con buscador y etiquetas.
-- Compartir exámenes/mapas/flashcards entre usuarios (lectura pública opt-in).
-- Validación comunitaria de recursos (votos, reportes de errores en preguntas).
+### Fase 4 — Biblioteca y comunidad (completa)
+- ✅ **Biblioteca** (`/app/biblioteca`): buscador por título, tema y concepto (sin acentos),
+  etiquetas derivadas automáticamente de los temas del análisis. Los exámenes heredan las
+  etiquetas de su material.
+- ✅ **Compartir exámenes** (lectura pública opt-in): toggle en el panel de revisión genera un
+  enlace `/compartido/{share_id}`. Cualquiera (incluso sin cuenta) puede hacer el examen;
+  con cuenta puede guardarlo en su campus. Las notas del autor nunca se exponen.
+- ✅ **Validación comunitaria**: votos "👍 Me sirvió" (uno por usuario) y reportes de error por
+  pregunta en la vista compartida. El autor ve los reportes como badge "⚠ N reportes" en cada
+  pregunta de su panel.
+- ⏳ Compartir mapas conceptuales y flashcards (solo exámenes por ahora).
+
+> ⚠️ Requiere ejecutar `supabase/migrations/003_compartir_comunidad.sql` antes de usar
+> compartir/votos/reportes. La UI degrada con elegancia si no está aplicada.
 
 ### Deuda técnica conocida
 - Restyle fino de landing y login al lenguaje cozy (hoy heredan el retinte global).
