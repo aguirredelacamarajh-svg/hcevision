@@ -237,6 +237,13 @@ export default function MaterialPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Auto-disparar análisis cuando el material llega con status "pending"
+  useEffect(() => {
+    if (material?.analysis_status === "pending" && !analyzing) {
+      analyze();
+    }
+  }, [material?.analysis_status]);
+
   async function analyze() {
     setAnalyzing(true);
     setActionError(null);

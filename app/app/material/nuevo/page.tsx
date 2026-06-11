@@ -5,25 +5,15 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
-type Screen = "form" | "analyzing";
-
 interface PdfEntry { name: string; text: string; }
 interface Folder { id: string; name: string; color: string; }
 
 const MAX_PDFS = 3;
 
-const ANALYZING_MESSAGES = [
-  "Leyendo tu material con calma...",
-  "Identificando los temas principales...",
-  "Trazando las conexiones entre conceptos...",
-  "Diseñando tu ruta de aprendizaje...",
-];
-
 export default function NuevoMaterial() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [screen, setScreen] = useState<Screen>("form");
   const [title, setTitle] = useState("");
   const [pdfs, setPdfs] = useState<PdfEntry[]>([]);
   const [pastedText, setPastedText] = useState("");
@@ -33,7 +23,7 @@ export default function NuevoMaterial() {
   const [error, setError] = useState<string | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState("");
-  const [analyzingMsg, setAnalyzingMsg] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -41,15 +31,9 @@ export default function NuevoMaterial() {
       .then(({ data }) => setFolders(data ?? []));
   }, []);
 
-  useEffect(() => {
-    if (screen !== "analyzing") return;
-    const id = setInterval(() => setAnalyzingMsg((m) => (m + 1) % ANALYZING_MESSAGES.length), 3000);
-    return () => clearInterval(id);
-  }, [screen]);
-
   const combinedText = [...pdfs.map((p) => p.text), pastedText]
     .filter((t) => t.trim().length > 0).join("\n\n---\n\n");
-  const canSubmit = combinedText.trim().length >= 300 && title.trim().length > 0 && !pdfLoading;
+  const canSubmit = combinedText.trim().length >= 300 && title.trim().length > 0 && !pdfLoading && !submitting;
 
   // ─── PDFs ──────────────────────────────────────────────────────────────────
 
@@ -95,6 +79,7 @@ export default function NuevoMaterial() {
 
   async function createMaterial() {
     if (!canSubmit) return;
+    setSubmitting(true);
     setError(null);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
@@ -113,19 +98,11 @@ export default function NuevoMaterial() {
 
     if (insertError || !data) {
       setError("No se pudo guardar el material. Inténtalo de nuevo.");
+      setSubmitting(false);
       return;
     }
 
-    setScreen("analyzing");
-    try {
-      await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ materialId: data.id }),
-      });
-    } catch {
-      // El material ya existe; la página de detalle permite reintentar el análisis
-    }
+    // Navegar de inmediato — la página del material dispara el análisis automáticamente
     router.push(`/app/material/${data.id}`);
   }
 
@@ -144,22 +121,7 @@ export default function NuevoMaterial() {
 
       <div className="flex-1 flex flex-col items-center px-4 pb-16">
 
-        {screen === "analyzing" && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-up">
-            <div className="relative w-20 h-20 mb-8">
-              <div className="absolute inset-0 rounded-full bg-blue-100 animate-ping opacity-40" />
-              <div className="relative w-20 h-20 rounded-full bg-blue-50 border-2 border-blue-200 flex items-center justify-center text-3xl">
-                📖
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold">Construyendo tu mapa de estudio</h1>
-            <p className="mt-3 text-slate-500 max-w-sm">{ANALYZING_MESSAGES[analyzingMsg]}</p>
-            <p className="mt-6 text-xs text-slate-400">Esto puede tardar hasta un minuto</p>
-          </div>
-        )}
-
-        {screen === "form" && (
-          <div className="w-full max-w-xl mt-8 sm:mt-12 animate-fade-up">
+        <div className="w-full max-w-xl mt-8 sm:mt-12 animate-fade-up">
             <div className="text-center">
               <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600 mb-2">Biblioteca</p>
               <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Nuevo material de estudio</h1>
@@ -247,13 +209,12 @@ export default function NuevoMaterial() {
 
             <button onClick={createMaterial} disabled={!canSubmit}
               className="mt-8 w-full px-10 py-3.5 rounded-xl bg-blue-600 text-white font-semibold text-lg disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition">
-              Analizar material
+              {submitting ? "Guardando..." : "Analizar material"}
             </button>
             <p className="mt-3 text-center text-xs text-slate-400">
               Mínimo 300 caracteres de contenido · El material queda guardado en tu biblioteca
             </p>
-          </div>
-        )}
+        </div>
       </div>
     </main>
   );
