@@ -21,3 +21,51 @@ export interface GenerateResponse {
 export interface GenerateError {
   error: string;
 }
+
+// ─── Análisis conceptual de materiales ───────────────────────────────────────
+
+export type Importancia = "fundamental" | "importante" | "complementario";
+
+export interface Tema {
+  nombre: string;
+  importancia: Importancia;
+  resumen: string;
+  conceptos: string[];
+  dependencias: string[]; // nombres de temas que conviene dominar antes
+}
+
+export interface PasoRuta {
+  tema: string;
+  razon: string;
+}
+
+export interface MaterialAnalysis {
+  resumen: string;
+  temas: Tema[];
+  ruta: PasoRuta[];
+}
+
+export type AnalysisStatus = "pending" | "processing" | "ready" | "error";
+
+export interface StudyMaterial {
+  id: string;
+  folder_id: string | null;
+  title: string;
+  source_text: string;
+  char_count: number;
+  analysis: MaterialAnalysis | null;
+  analysis_status: AnalysisStatus;
+  created_at: string;
+}
+
+// ─── Flashcards ──────────────────────────────────────────────────────────────
+
+export interface Flashcard {
+  id: string;
+  material_id: string;
+  tema: string;
+  front: string;
+  back: string;
+}
+
+export type FlashcardRating = 1 | 2 | 3; // 1 otra vez · 2 difícil · 3 bien

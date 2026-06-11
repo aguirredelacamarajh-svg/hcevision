@@ -1,26 +1,139 @@
 @import "tailwindcss";
 
+/* ════════════════════════════════════════════════════════════════════════════
+   HCE Vision — Sistema de diseño "cuaderno cálido"
+   Filosofía: papel, arcilla, salvia y tinta. Estudiar sin frío tecnológico.
+   Las paletas slate/blue/green/red/purple/amber/teal/rose de Tailwind se
+   remapean a tonos cálidos: todas las pantallas existentes heredan el clima
+   cozy sin reescribir sus clases.
+   ════════════════════════════════════════════════════════════════════════════ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fbf7ef;
+  --foreground: #2e251d;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-karla);
+  --font-display: var(--font-fraunces);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+@theme {
+  /* Papel — neutros cálidos (reemplaza slate) */
+  --color-slate-50: #fbf7ef;
+  --color-slate-100: #f5eddf;
+  --color-slate-200: #eaddc7;
+  --color-slate-300: #d8c5a6;
+  --color-slate-400: #b3a084;
+  --color-slate-500: #8a7a61;
+  --color-slate-600: #6f6049;
+  --color-slate-700: #594c39;
+  --color-slate-800: #41372a;
+  --color-slate-900: #2e251d;
+
+  /* Arcilla — color primario (reemplaza blue) */
+  --color-blue-50: #fcf2ea;
+  --color-blue-100: #f8e3d2;
+  --color-blue-200: #f1c8a8;
+  --color-blue-300: #e7a87d;
+  --color-blue-400: #d98253;
+  --color-blue-500: #c76a3c;
+  --color-blue-600: #a84b28;
+  --color-blue-700: #8c3d21;
+  --color-blue-800: #70311c;
+  --color-blue-900: #5a2817;
+
+  /* Salvia — acierto (reemplaza green) */
+  --color-green-50: #f2f5ec;
+  --color-green-100: #e3ead6;
+  --color-green-200: #c9d6af;
+  --color-green-300: #aabd87;
+  --color-green-400: #8aa263;
+  --color-green-500: #6f8a4a;
+  --color-green-600: #587038;
+  --color-green-700: #475a2f;
+  --color-green-800: #364425;
+
+  /* Teja — error (reemplaza red) */
+  --color-red-50: #fbf0ec;
+  --color-red-100: #f6ddd3;
+  --color-red-200: #edbca9;
+  --color-red-300: #e0937a;
+  --color-red-400: #cf6a50;
+  --color-red-500: #bb4e33;
+  --color-red-600: #a03e28;
+  --color-red-700: #833220;
+
+  /* Ciruela — nivel avanzado (reemplaza purple) */
+  --color-purple-50: #f7f1f6;
+  --color-purple-100: #efe3ed;
+  --color-purple-200: #dfc6db;
+  --color-purple-300: #c9a2c2;
+  --color-purple-400: #b080a6;
+  --color-purple-500: #94648a;
+  --color-purple-600: #7b4f72;
+  --color-purple-700: #63405c;
+
+  /* Miel — avisos (reemplaza amber) */
+  --color-amber-50: #fcf6e7;
+  --color-amber-100: #f8ebc8;
+  --color-amber-200: #f0d795;
+  --color-amber-300: #e5bc5c;
+  --color-amber-400: #d9a23b;
+  --color-amber-500: #c2882b;
+  --color-amber-600: #a06f22;
+  --color-amber-700: #82591e;
+  --color-amber-800: #68471a;
+
+  /* Eucalipto — carpetas (reemplaza teal) */
+  --color-teal-100: #e0ede9;
+  --color-teal-200: #c2dbd4;
+  --color-teal-500: #4e8a7c;
+  --color-teal-600: #3e7265;
+  --color-teal-700: #335d53;
+
+  /* Rosa té — carpetas (reemplaza rose) */
+  --color-rose-100: #f9e3e1;
+  --color-rose-200: #f2c8c4;
+  --color-rose-500: #c25b52;
+  --color-rose-600: #a84840;
+  --color-rose-700: #8a3b35;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(at 12% -5%, rgba(168, 75, 40, 0.05), transparent 45%),
+    radial-gradient(at 95% 105%, rgba(111, 138, 74, 0.06), transparent 45%);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-karla), ui-sans-serif, system-ui, sans-serif;
 }
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-fraunces), Georgia, serif;
+}
+
+/* ─── Animaciones ───────────────────────────────────────────────────────────── */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ─── Flashcards 3D ─────────────────────────────────────────────────────────── */
+
+.perspective-1200 { perspective: 1200px; }
+.preserve-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; }
+.rotate-y-180 { transform: rotateY(180deg); }

@@ -39,6 +39,15 @@ interface Attempt {
   attempted_at: string;
 }
 
+interface Material {
+  id: string;
+  title: string;
+  folder_id: string | null;
+  analysis_status: string;
+  char_count: number;
+  created_at: string;
+}
+
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
 const COLORS: Record<string, { chip: string; dot: string; btn: string }> = {
@@ -82,6 +91,7 @@ export default function CampusPage() {
   const supabase = createClient();
 
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [exams, setExams] = useState<SavedExam[]>([]);
   const [attemptsByExam, setAttemptsByExam] = useState<Record<string, Attempt[]>>({});
   const [hasMore, setHasMore] = useState(false);
@@ -110,13 +120,17 @@ export default function CampusPage() {
       if (!user) { router.push("/login"); return; }
       setUserEmail(user.email ?? "");
 
-      const [{ data: foldersData }, { data: examsData }] = await Promise.all([
+      const [{ data: foldersData }, { data: examsData }, { data: materialsData }] = await Promise.all([
         supabase.from("folders").select("*").order("created_at"),
         supabase.from("saved_exams").select("*").order("created_at", { ascending: false }).range(0, PAGE_SIZE - 1),
+        supabase.from("study_materials")
+          .select("id, title, folder_id, analysis_status, char_count, created_at")
+          .order("created_at", { ascending: false }),
       ]);
 
       const loadedExams = examsData ?? [];
       setFolders(foldersData ?? []);
+      setMaterials(materialsData ?? []);
       setExams(loadedExams);
       setHasMore(loadedExams.length === PAGE_SIZE);
 
@@ -215,16 +229,22 @@ export default function CampusPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
-        <span className="font-bold text-lg tracking-tight">
+      <header className="bg-white/70 backdrop-blur border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-20">
+        <span className="font-bold text-lg tracking-tight font-display">
           HCE <span className="text-blue-600">Vision</span>
         </span>
         <div className="flex items-center gap-3">
           <Link
+            href="/app/material/nuevo"
+            className="px-4 py-2 rounded-xl border border-blue-300 text-blue-700 text-sm font-semibold hover:bg-blue-50 transition hidden sm:block"
+          >
+            + Material
+          </Link>
+          <Link
             href="/app/nuevo"
             className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
           >
-            + Nuevo examen
+            + Examen
           </Link>
           <button
             onClick={handleLogout}
@@ -238,9 +258,14 @@ export default function CampusPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Saludo */}
         {userEmail && (
-          <p className="text-slate-500 text-sm mb-6">
-            Hola, <span className="font-medium text-slate-700">{userEmail.split("@")[0]}</span> 👋
-          </p>
+          <div className="mb-8 animate-fade-up">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-800">
+              Hola, {userEmail.split("@")[0]} 👋
+            </h1>
+            <p className="text-slate-500 text-sm mt-1">
+              Tu espacio de estudio te estaba esperando.
+            </p>
+          </div>
         )}
 
         {loading ? (
@@ -335,6 +360,76 @@ export default function CampusPage() {
                   );
                 })}
               </div>
+            </section>
+
+            {/* ── Materiales de estudio ── */}
+            <section className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-slate-800">
+                  Materiales de estudio
+                  <span className="ml-2 text-slate-400 font-normal text-sm">
+                    {(activeFolder ? materials.filter((m) => m.folder_id === activeFolder) : materials).length}
+                  </span>
+                </h2>
+                <Link href="/app/material/nuevo" className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                  + Nuevo material
+                </Link>
+              </div>
+
+              {(activeFolder ? materials.filter((m) => m.folder_id === activeFolder) : materials).length === 0 ? (
+                <Link href="/app/material/nuevo"
+                  className="block rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-6 text-center hover:border-blue-400 transition group">
+                  <p className="text-2xl mb-2">🗺</p>
+                  <p className="font-medium text-slate-700 group-hover:text-blue-700">
+                    Sube tu primer material de estudio
+                  </p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Lo convertimos en mapa conceptual, ruta de aprendizaje y flashcards
+                  </p>
+                </Link>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {(activeFolder ? materials.filter((m) => m.folder_id === activeFolder) : materials).map((m) => {
+                    const folder = folders.find((f) => f.id === m.folder_id);
+                    const col = folder ? (COLORS[folder.color] ?? COLORS.blue) : null;
+                    return (
+                      <Link
+                        key={m.id}
+                        href={`/app/material/${m.id}`}
+                        className="bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-md hover:border-slate-300 transition group"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          {m.analysis_status === "ready" ? (
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+                              ✓ Analizado
+                            </span>
+                          ) : m.analysis_status === "error" ? (
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-600">
+                              Error de análisis
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
+                              Analizando…
+                            </span>
+                          )}
+                          {folder && col && (
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${col.chip}`}>
+                              {folder.name}
+                            </span>
+                          )}
+                        </div>
+                        <p className="font-semibold text-slate-800 leading-tight mb-3 line-clamp-2 group-hover:text-blue-700 transition">
+                          📚 {m.title}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>{relativeDate(m.created_at)}</span>
+                          <span>{Math.round(m.char_count / 1000)} mil caracteres</span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </section>
 
             {/* ── Exámenes ── */}

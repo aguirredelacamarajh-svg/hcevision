@@ -77,7 +77,28 @@ export default function NuevoExamen() {
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
 
+  // Material de origen (cuando se llega desde /app/material/[id])
+  const [materialId, setMaterialId] = useState<string | null>(null);
+  const [materialTitle, setMaterialTitle] = useState("");
+
   // ─── Efectos ───────────────────────────────────────────────────────────────
+
+  // Cargar material de origen si se llega con ?material=
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("material");
+    if (!id) return;
+    supabase
+      .from("study_materials")
+      .select("id, title, source_text")
+      .eq("id", id)
+      .single()
+      .then(({ data }) => {
+        if (!data) return;
+        setMaterialId(data.id);
+        setMaterialTitle(data.title);
+        setPastedText(data.source_text);
+      });
+  }, []);
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -220,6 +241,7 @@ export default function NuevoExamen() {
       time_seconds: finalElapsed,
       answers,
       attempted_at: new Date().toISOString(),
+      ...(materialId ? { material_id: materialId } : {}),
     }).select("id").single();
 
     if (!error && data) {
@@ -278,6 +300,20 @@ export default function NuevoExamen() {
               Nuevo examen
             </h1>
             <p className="mt-2 text-slate-500">Sube hasta 3 PDFs o pega tu texto</p>
+
+            {materialId && (
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700">
+                <span>📚</span>
+                <span>Material cargado: <span className="font-semibold">{materialTitle}</span></span>
+                <button
+                  onClick={() => { setMaterialId(null); setMaterialTitle(""); setPastedText(""); }}
+                  className="ml-1 text-green-700/60 hover:text-green-800"
+                  title="Quitar material"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {error && (
               <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
