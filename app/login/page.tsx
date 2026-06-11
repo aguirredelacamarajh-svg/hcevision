@@ -57,15 +57,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center px-4">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <Link href="/" className="block text-center mb-8">
-          <span className="font-bold text-2xl tracking-tight">
+        <Link href="/" className="block text-center mb-3">
+          <span className="font-bold text-2xl tracking-tight font-display">
             HCE <span className="text-blue-600">Vision</span>
           </span>
         </Link>
+        <p className="text-center text-sm text-slate-500 mb-8">
+          Tu espacio de estudio te espera 🌿
+        </p>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
           {/* Tabs */}
           <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6">
             {(["login", "signup"] as const).map((m) => (

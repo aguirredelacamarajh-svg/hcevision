@@ -22,6 +22,11 @@ export interface GenerateError {
   error: string;
 }
 
+export interface ExamAnswer {
+  elegida: number; // índice 0-3 que eligió el estudiante
+  acierto: boolean;
+}
+
 // ─── Análisis conceptual de materiales ───────────────────────────────────────
 
 export type Importancia = "fundamental" | "importante" | "complementario";

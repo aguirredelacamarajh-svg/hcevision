@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { StudyMaterial, Tema, MaterialAnalysis } from "@/lib/types";
+import { AppHeader } from "@/components/AppHeader";
 
 interface LinkedExam {
   id: string;
@@ -290,14 +291,7 @@ export default function MaterialPage() {
 
   return (
     <main className="min-h-screen text-slate-900">
-      <header className="px-6 py-4 flex items-center justify-between bg-white/70 backdrop-blur border-b border-slate-200 sticky top-0 z-20">
-        <Link href="/app" className="font-bold text-lg tracking-tight font-display">
-          HCE <span className="text-blue-600">Vision</span>
-        </Link>
-        <Link href="/app" className="text-sm text-slate-400 hover:text-slate-600 transition">
-          ← Campus
-        </Link>
-      </header>
+      <AppHeader backHref="/app" backLabel="← Campus" />
 
       <div className="max-w-3xl mx-auto px-4 py-10">
         {loading && (

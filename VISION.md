@@ -79,8 +79,12 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
 > compartir/votos/reportes. La UI degrada con elegancia si no está aplicada.
 
 ### Deuda técnica conocida
-- Restyle fino de landing y login al lenguaje cozy (hoy heredan el retinte global).
-- Extraer componentes compartidos (header, QuestionDot, pantalla de examen) usados por
-  `nuevo`, `rehacer` y futuros modos.
+- ✅ Restyle de landing y login al lenguaje cozy: Fraunces en titulares, copy de plataforma
+  completa (mapa, ruta, flashcards, tutor, casos, compartir), sección "cómo funciona".
+- ✅ Componentes compartidos extraídos a `components/`: `AppHeader` (10 páginas),
+  `exam/ExamHud` (sidebar + barra móvil con dots) y `exam/QuestionCard` (pregunta en curso),
+  usados por `nuevo` y `rehacer`. Tipo `ExamAnswer` unificado en `lib/types.ts`.
 - `pending`/`processing` de análisis: hoy se resuelve con recarga manual; valorar polling
   o Supabase Realtime.
+- Persistir conversaciones del tutor y casos clínicos (hoy viven en memoria).
+- Compartir mapas conceptuales y flashcards (hoy solo exámenes).

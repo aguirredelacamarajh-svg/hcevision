@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { ChatMessage, MaterialAnalysis } from "@/lib/types";
+import { AppHeader } from "@/components/AppHeader";
 
 const MAX_HISTORY = 20; // mensajes que se envían al servidor
 const MAX_INPUT = 4_000;
@@ -104,14 +105,7 @@ export default function TutorPage() {
 
   return (
     <main className="h-dvh text-slate-900 flex flex-col">
-      <header className="px-6 py-4 shrink-0 flex items-center justify-between bg-white/70 backdrop-blur border-b border-slate-200 z-10">
-        <Link href="/app" className="font-bold text-lg tracking-tight font-display">
-          HCE <span className="text-blue-600">Vision</span>
-        </Link>
-        <Link href={`/app/material/${materialId}`} className="text-sm text-slate-400 hover:text-slate-600 transition">
-          ← Material
-        </Link>
-      </header>
+      <AppHeader backHref={`/app/material/${materialId}`} backLabel="← Material" />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
