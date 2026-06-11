@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Question, Nivel, NumPreguntas } from "@/lib/types";
+import type { Nivel, NumPreguntas } from "@/lib/types";
 import { VALID_NUM_QUESTIONS } from "@/lib/types";
 import { SYSTEM_PROMPT, buildUserPrompt, PROMPT_VERSION } from "@/lib/prompts";
+import { makeExamTool, validateQuestions } from "@/lib/exam-tool";
 import { createClient } from "@/lib/supabase/server";
 
 export const maxDuration = 60;
@@ -9,72 +10,6 @@ export const maxDuration = 60;
 const MIN_CHARS = 300;
 const MAX_CHARS = 40_000;
 const MAX_ATTEMPTS = 2;
-
-function makeExamTool(numPreguntas: number): Anthropic.Tool {
-  return {
-    name: "entregar_examen",
-    description: "Entrega el examen tipo test generado a partir del material.",
-    input_schema: {
-      type: "object",
-      properties: {
-        preguntas: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              enunciado: { type: "string" },
-              opciones: {
-                type: "array",
-                items: { type: "string" },
-                minItems: 4,
-                maxItems: 4,
-              },
-              correcta: { type: "integer", minimum: 0, maximum: 3 },
-              explicacion: { type: "string" },
-            },
-            required: ["enunciado", "opciones", "correcta", "explicacion"],
-          },
-          minItems: numPreguntas,
-          maxItems: numPreguntas,
-        },
-      },
-      required: ["preguntas"],
-    },
-  };
-}
-
-function validate(input: unknown, numPreguntas: number): Question[] | null {
-  if (typeof input !== "object" || input === null) return null;
-  const preguntas = (input as { preguntas?: unknown }).preguntas;
-  if (!Array.isArray(preguntas) || preguntas.length !== numPreguntas)
-    return null;
-
-  for (const q of preguntas) {
-    if (typeof q !== "object" || q === null) return null;
-    const { enunciado, opciones, correcta, explicacion } = q as Record<
-      string,
-      unknown
-    >;
-    if (typeof enunciado !== "string" || enunciado.trim().length < 20)
-      return null;
-    if (
-      !Array.isArray(opciones) ||
-      opciones.length !== 4 ||
-      opciones.some((o) => typeof o !== "string" || o.trim().length === 0)
-    )
-      return null;
-    if (
-      typeof correcta !== "number" ||
-      !Number.isInteger(correcta) ||
-      correcta < 0 ||
-      correcta > 3
-    )
-      return null;
-    if (typeof explicacion !== "string" || explicacion.trim().length < 30)
-      return null;
-  }
-  return preguntas as unknown as Question[];
-}
 
 export async function POST(req: Request) {
   // Verificar sesión y aprobación antes de consumir la API de Anthropic
@@ -161,7 +96,7 @@ export async function POST(req: Request) {
       const toolUse = message.content.find(
         (block) => block.type === "tool_use"
       );
-      const preguntas = toolUse ? validate(toolUse.input, numPreguntas) : null;
+      const preguntas = toolUse ? validateQuestions(toolUse.input, numPreguntas) : null;
 
       if (preguntas) {
         return Response.json({

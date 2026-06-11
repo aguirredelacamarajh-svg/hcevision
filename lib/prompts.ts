@@ -38,6 +38,49 @@ ${material}
 """`;
 }
 
+// ─── Examen de refuerzo (a partir de errores) ─────────────────────────────────
+
+export const REFUERZO_PROMPT_VERSION = "v0.1";
+
+export interface PreguntaFallada {
+  enunciado: string;
+  respuestaCorrecta: string;
+  explicacion: string;
+}
+
+export function buildRefuerzoPrompt(
+  material: string,
+  falladas: PreguntaFallada[],
+  numPreguntas: number,
+  nivel: Nivel
+): string {
+  const listado = falladas
+    .map(
+      (f, i) =>
+        `${i + 1}. ${f.enunciado}\n   Respuesta correcta: ${f.respuestaCorrecta}\n   Explicación: ${f.explicacion}`
+    )
+    .join("\n\n");
+
+  return `El estudiante falló las siguientes preguntas en un examen anterior. Genera exactamente ${numPreguntas} preguntas tipo test NUEVAS (4 opciones, 1 correcta) que evalúen ESOS MISMOS conceptos desde ángulos distintos, para verificar que ahora los domina.
+
+${NIVEL_INSTRUCCIONES[nivel]}
+
+Reglas obligatorias:
+1. Prohibido repetir una pregunta fallada de forma literal o casi literal: cambia el enfoque (caso clínico nuevo, pregunta inversa, comparación entre conceptos).
+2. Cada pregunta nueva debe atacar el concepto de fondo de una o varias preguntas falladas. Reparte la cobertura entre todos los conceptos fallados.
+3. Los 3 distractores deben representar errores conceptuales reales y plausibles — idealmente el mismo tipo de error que llevó al estudiante a fallar.
+4. La explicación debe razonar por qué la opción correcta es correcta Y por qué cada distractor es falso.
+5. Si se adjunta material de estudio, todas las preguntas deben poder verificarse con él. Si no, deben poder verificarse con las explicaciones de las preguntas falladas.
+6. Español de España, terminología clínica estándar.
+7. Prohibido usar "todas las anteriores" o "ninguna de las anteriores".
+
+PREGUNTAS FALLADAS:
+"""
+${listado}
+"""
+${material ? `\nMATERIAL DE ESTUDIO:\n"""\n${material}\n"""` : ""}`;
+}
+
 // ─── Análisis conceptual ──────────────────────────────────────────────────────
 
 export const ANALYSIS_PROMPT_VERSION = "v0.1";

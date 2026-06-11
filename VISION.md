@@ -41,12 +41,13 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
 
 ## Hoja de ruta
 
-### Fase 2 — Memoria académica
-- **Repaso espaciado real**: usar `flashcard_reviews` para calcular qué tarjetas tocan hoy
-  (algoritmo tipo SM-2 simplificado) y mostrar "Repasos pendientes" en el campus.
-- **Examen focalizado en debilidades**: cruzar `exam_attempts.answers` con los temas del
-  análisis para generar exámenes solo de las áreas flojas ("Repasar errores").
-- **Dashboard de aprendizaje**: evolución de notas por material/carpeta, racha de estudio,
+### Fase 2 — Memoria académica (en curso)
+- ✅ **Repaso espaciado real**: `lib/srs.ts` (SM-2 simplificado, escalera 0/1/3/7/14/30/60 días),
+  sesión global en `/app/repaso` y banner "Repasos pendientes" en el campus.
+- ✅ **Examen de refuerzo**: `/api/refuerzo` toma los errores del último intento, genera 10
+  preguntas nuevas sobre esos conceptos y las guarda como examen "🎯 Refuerzo · ...".
+  Botón en el panel de revisión del campus.
+- ⏳ **Dashboard de aprendizaje**: evolución de notas por material/carpeta, racha de estudio,
   temas dominados vs. pendientes.
 
 ### Fase 3 — Tutor inteligente

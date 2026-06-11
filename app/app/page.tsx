@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Question } from "@/lib/types";
 import { generateExamPDF } from "@/lib/pdf";
+import { computeSrsStates, isDue, type ReviewRecord } from "@/lib/srs";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export default function CampusPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userEmail, setUserEmail] = useState("");
+  const [dueCount, setDueCount] = useState(0);
 
   // Filtro activo
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
@@ -120,13 +122,25 @@ export default function CampusPage() {
       if (!user) { router.push("/login"); return; }
       setUserEmail(user.email ?? "");
 
-      const [{ data: foldersData }, { data: examsData }, { data: materialsData }] = await Promise.all([
+      const [
+        { data: foldersData },
+        { data: examsData },
+        { data: materialsData },
+        { data: cardsData },
+        { data: reviewsData },
+      ] = await Promise.all([
         supabase.from("folders").select("*").order("created_at"),
         supabase.from("saved_exams").select("*").order("created_at", { ascending: false }).range(0, PAGE_SIZE - 1),
         supabase.from("study_materials")
           .select("id, title, folder_id, analysis_status, char_count, created_at")
           .order("created_at", { ascending: false }),
+        supabase.from("flashcards").select("id"),
+        supabase.from("flashcard_reviews").select("flashcard_id, rating, reviewed_at"),
       ]);
+
+      // Repasos pendientes según el algoritmo de repaso espaciado
+      const srsStates = computeSrsStates((reviewsData ?? []) as ReviewRecord[]);
+      setDueCount((cardsData ?? []).filter((c) => isDue(srsStates.get(c.id))).length);
 
       const loadedExams = examsData ?? [];
       setFolders(foldersData ?? []);
@@ -274,6 +288,29 @@ export default function CampusPage() {
           </div>
         ) : (
           <>
+            {/* ── Repasos pendientes ── */}
+            {dueCount > 0 && (
+              <Link
+                href="/app/repaso"
+                className="mb-8 flex items-center justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 hover:border-amber-300 hover:shadow-md transition group animate-fade-up"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="text-3xl shrink-0">🔁</span>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-800">
+                      {dueCount === 1 ? "Tenés 1 tarjeta para repasar hoy" : `Tenés ${dueCount} tarjetas para repasar hoy`}
+                    </p>
+                    <p className="text-sm text-slate-500 truncate">
+                      Repasar a tiempo es lo que fija la memoria a largo plazo.
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-semibold group-hover:bg-amber-600 transition">
+                  Repasar →
+                </span>
+              </Link>
+            )}
+
             {/* ── Carpetas ── */}
             <section className="mb-8">
               <div className="flex items-center justify-between mb-3">
@@ -588,11 +625,41 @@ function ReviewPanel({
   onDelete: () => void;
   onRename: (newTitle: string) => void;
 }) {
+  const router = useRouter();
   const folder = folders.find((f) => f.id === exam.folder_id);
   const lastAttempt = attempts[0]; // DESC por attempted_at
   const [editingTitle, setEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(exam.title);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Examen de refuerzo a partir de los errores del último intento
+  const [refuerzoLoading, setRefuerzoLoading] = useState(false);
+  const [refuerzoError, setRefuerzoError] = useState<string | null>(null);
+  const lastScore = lastAttempt?.score ?? exam.score;
+  const lastNumQ = lastAttempt?.num_questions ?? exam.num_questions;
+  const errorCount = lastScore != null ? lastNumQ - lastScore : 0;
+
+  async function generarRefuerzo() {
+    setRefuerzoLoading(true);
+    setRefuerzoError(null);
+    try {
+      const res = await fetch("/api/refuerzo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ examId: exam.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setRefuerzoError(json.error ?? "No se pudo generar el refuerzo.");
+        setRefuerzoLoading(false);
+        return;
+      }
+      router.push(`/app/rehacer/${json.examId}`);
+    } catch {
+      setRefuerzoError("Error de red generando el refuerzo. Inténtalo de nuevo.");
+      setRefuerzoLoading(false);
+    }
+  }
 
   useEffect(() => { setDraftTitle(exam.title); }, [exam.title]);
   useEffect(() => { if (editingTitle) titleInputRef.current?.select(); }, [editingTitle]);
@@ -686,6 +753,37 @@ function ReviewPanel({
 
         {/* Preguntas */}
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
+          {/* Examen de refuerzo */}
+          {errorCount > 0 && (
+            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800">
+                    🎯 Refuerza tus {errorCount === 1 ? "1 error" : `${errorCount} errores`}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Generamos 10 preguntas nuevas sobre lo que fallaste.
+                  </p>
+                </div>
+                <button
+                  onClick={generarRefuerzo}
+                  disabled={refuerzoLoading}
+                  className="shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition disabled:opacity-60"
+                >
+                  {refuerzoLoading ? "Generando..." : "Generar"}
+                </button>
+              </div>
+              {refuerzoLoading && (
+                <p className="mt-2 text-xs text-blue-700">
+                  Analizando tus errores y redactando preguntas nuevas... (hasta 1 minuto)
+                </p>
+              )}
+              {refuerzoError && (
+                <p className="mt-2 text-xs text-red-600">{refuerzoError}</p>
+              )}
+            </div>
+          )}
+
           {/* Historial de intentos */}
           {attempts.length > 0 && (
             <div className="rounded-xl border border-slate-200 overflow-hidden">
