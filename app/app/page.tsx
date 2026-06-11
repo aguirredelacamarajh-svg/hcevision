@@ -683,13 +683,19 @@ function ReviewPanel({
               })}
             className="flex-1 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 transition flex items-center justify-center gap-1.5"
           >
-            <span>⬇</span> Exportar PDF
+            <span>⬇</span> PDF
           </button>
           <Link
-            href="/app/nuevo"
+            href={`/app/rehacer/${exam.id}`}
             className="flex-1 text-center py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition"
           >
-            Nuevo examen
+            ↺ Rehacer
+          </Link>
+          <Link
+            href="/app/nuevo"
+            className="flex-1 text-center py-2.5 rounded-xl border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+          >
+            Nuevo
           </Link>
           <button
             onClick={onDelete}
