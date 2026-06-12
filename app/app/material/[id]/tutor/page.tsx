@@ -47,7 +47,7 @@ export default function TutorPage() {
       setLoading(false);
     }
     load();
-  }, [materialId]);
+  }, [materialId, router, supabase]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

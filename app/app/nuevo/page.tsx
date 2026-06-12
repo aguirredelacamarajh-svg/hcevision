@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Question, Nivel, NumPreguntas, ExamAnswer } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
@@ -37,7 +36,6 @@ function nivelLabel(n: Nivel) { return n.charAt(0).toUpperCase() + n.slice(1); }
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function NuevoExamen() {
-  const router = useRouter();
   const supabase = createClient();
 
   const [screen, setScreen] = useState<Screen>("upload");
@@ -100,7 +98,7 @@ export default function NuevoExamen() {
         setMaterialTitle(data.title);
         setPastedText(data.source_text);
       });
-  }, []);
+  }, [supabase]);
 
   useEffect(() => {
     if (screen !== "loading") return;
@@ -108,34 +106,23 @@ export default function NuevoExamen() {
     return () => clearInterval(id);
   }, [screen]);
 
+  // Tick del cronómetro mientras el examen está en curso (el reset del timer
+  // ocurre en startGeneration, al entrar en la pantalla de examen)
   useEffect(() => {
-    if (screen === "exam") {
-      examStartRef.current = Date.now();
-      setElapsedSeconds(0);
-      const id = setInterval(() => {
-        if (examStartRef.current)
-          setElapsedSeconds(Math.floor((Date.now() - examStartRef.current) / 1000));
-      }, 1000);
-      return () => clearInterval(id);
-    }
-    if (screen === "result" && examStartRef.current !== null) {
-      setFinalElapsed(Math.floor((Date.now() - examStartRef.current) / 1000));
-      examStartRef.current = null;
-    }
+    if (screen !== "exam") return;
+    const id = setInterval(() => {
+      if (examStartRef.current)
+        setElapsedSeconds(Math.floor((Date.now() - examStartRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
   }, [screen]);
 
   // Cargar carpetas al llegar al resultado
   useEffect(() => {
     if (screen !== "result") return;
-    // Solo poner título por defecto si el usuario no escribió uno
-    if (!examTitle.trim()) {
-      const date = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short" });
-      setExamTitle(`Examen ${nivelLabel(examNivel)} · ${date}`);
-    }
-    setSavedId(null);
     supabase.from("folders").select("id, name, color").order("created_at")
       .then(({ data }) => setFolders(data ?? []));
-  }, [screen]);
+  }, [screen, supabase]);
 
   // ─── Datos derivados ───────────────────────────────────────────────────────
 
@@ -143,7 +130,6 @@ export default function NuevoExamen() {
     .filter((t) => t.trim().length > 0).join("\n\n---\n\n");
   const canGenerate = combinedText.trim().length >= 300 && !pdfLoading;
   const correctSoFar = answers.filter((a) => a.acierto).length;
-  const incorrectSoFar = answers.filter((a) => !a.acierto).length;
   const score = correctSoFar;
   const failed = answers.map((a, i) => ({ ...a, i })).filter((a) => !a.acierto);
 
@@ -196,6 +182,8 @@ export default function NuevoExamen() {
       if (!res.ok) throw new Error(data.error ?? "No se pudo generar el examen.");
       setTruncated(!!data.recortado);
       setQuestions(data.preguntas);
+      examStartRef.current = Date.now();
+      setElapsedSeconds(0);
       setScreen("exam");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error inesperado.");
@@ -210,12 +198,27 @@ export default function NuevoExamen() {
   }
 
   function next() {
-    if (current + 1 < questions.length) { setCurrent((c) => c + 1); setSelected(null); }
-    else setScreen("result");
+    if (current + 1 < questions.length) { setCurrent((c) => c + 1); setSelected(null); return; }
+    if (examStartRef.current !== null) {
+      setFinalElapsed(Math.floor((Date.now() - examStartRef.current) / 1000));
+      examStartRef.current = null;
+    }
+    // Solo poner título por defecto si el usuario no escribió uno
+    if (!examTitle.trim()) {
+      const date = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+      setExamTitle(`Examen ${nivelLabel(examNivel)} · ${date}`);
+    }
+    setSavedId(null);
+    setScreen("result");
   }
 
   function toggleFlag() {
-    setFlagged((f) => { const c = new Set(f); c.has(current) ? c.delete(current) : c.add(current); return c; });
+    setFlagged((f) => {
+      const c = new Set(f);
+      if (c.has(current)) c.delete(current);
+      else c.add(current);
+      return c;
+    });
   }
 
   function reset() {

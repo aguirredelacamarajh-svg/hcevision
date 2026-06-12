@@ -25,7 +25,6 @@ export default function RehacerExamen() {
   const [screen, setScreen] = useState<Screen>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [examTitle, setExamTitle] = useState("");
-  const [examNivel, setExamNivel] = useState("");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [examDbId, setExamDbId] = useState("");
 
@@ -65,19 +64,20 @@ export default function RehacerExamen() {
 
       setExamDbId(exam.id);
       setExamTitle(exam.title);
-      setExamNivel(exam.nivel);
       setQuestions(exam.questions);
+      examStartRef.current = Date.now();
+      setElapsedSeconds(0);
       setScreen("exam");
     }
     load();
-  }, [examId]);
+  }, [examId, router, supabase]);
 
   // ─── Timer ──────────────────────────────────────────────────────────────────
+  // (el reset del cronómetro ocurre al entrar en la pantalla de examen:
+  // en la carga inicial y en retake)
 
   useEffect(() => {
     if (screen !== "exam") return;
-    examStartRef.current = Date.now();
-    setElapsedSeconds(0);
     const id = setInterval(() => {
       if (examStartRef.current)
         setElapsedSeconds(Math.floor((Date.now() - examStartRef.current) / 1000));
@@ -112,12 +112,12 @@ export default function RehacerExamen() {
       if (error) console.warn("exam_attempts insert failed:", error.message);
     }
     save();
-  }, [screen, finalElapsed]); // finalElapsed y screen se actualizan juntos en next()
+    // savedRef evita inserciones duplicadas aunque cambien las deps
+  }, [screen, finalElapsed, answers, examDbId, questions.length, supabase]);
 
   // ─── Derivados ───────────────────────────────────────────────────────────────
 
   const correctCount = answers.filter(a => a.acierto).length;
-  const incorrectCount = answers.filter(a => !a.acierto).length;
   const pct = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
   const scoreColor = pct >= 70 ? "#16a34a" : pct >= 50 ? "#d97706" : "#dc2626";
 
@@ -145,7 +145,12 @@ export default function RehacerExamen() {
   }
 
   function toggleFlag() {
-    setFlagged(f => { const c = new Set(f); c.has(current) ? c.delete(current) : c.add(current); return c; });
+    setFlagged(f => {
+      const c = new Set(f);
+      if (c.has(current)) c.delete(current);
+      else c.add(current);
+      return c;
+    });
   }
 
   function retake() {
@@ -155,6 +160,8 @@ export default function RehacerExamen() {
     setFlagged(new Set());
     setSaveStatus("idle");
     savedRef.current = false;
+    examStartRef.current = Date.now();
+    setElapsedSeconds(0);
     setScreen("exam");
   }
 

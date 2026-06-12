@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { Question } from "@/lib/types";
@@ -22,7 +22,6 @@ interface SharedExam {
 export default function ExamenCompartido() {
   const params = useParams<{ shareId: string }>();
   const shareId = params.shareId;
-  const router = useRouter();
   const supabase = createClient();
 
   const [screen, setScreen] = useState<Screen>("loading");
@@ -79,7 +78,7 @@ export default function ExamenCompartido() {
       setScreen("cover");
     }
     load();
-  }, [shareId]);
+  }, [shareId, supabase]);
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 

@@ -62,7 +62,7 @@ export default function MaterialCompartido() {
       setLoading(false);
     }
     load();
-  }, [shareId]);
+  }, [shareId, supabase]);
 
   const analysis = material?.analysis ?? null;
 

@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { AppHeader } from "@/components/AppHeader";
 
@@ -30,7 +29,7 @@ export default function NuevoMaterial() {
   useEffect(() => {
     supabase.from("folders").select("id, name, color").order("created_at")
       .then(({ data }) => setFolders(data ?? []));
-  }, []);
+  }, [supabase]);
 
   const combinedText = [...pdfs.map((p) => p.text), pastedText]
     .filter((t) => t.trim().length > 0).join("\n\n---\n\n");

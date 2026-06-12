@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Assets estáticos (incluye pdf.worker.min.mjs copiado en postinstall)
+    "public/**",
   ]),
 ]);
 

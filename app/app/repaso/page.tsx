@@ -74,9 +74,11 @@ export default function RepasoGlobal() {
     setFlipped(false);
     setCounts({ again: 0, hard: 0, good: 0 });
     setScreen("study");
-  }, []);
+  }, [router, supabase]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    (async () => { await load(); })();
+  }, [load]);
 
   function rate(rating: FlashcardRating) {
     const card = queue[pos];

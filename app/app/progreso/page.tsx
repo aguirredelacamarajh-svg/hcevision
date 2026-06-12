@@ -186,7 +186,7 @@ export default function ProgresoPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [router, supabase]);
 
   // ── Gráfica SVG de evolución ──
   const W = 600, H = 180, PAD = 28;

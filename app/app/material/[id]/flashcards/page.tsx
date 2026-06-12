@@ -56,9 +56,11 @@ export default function FlashcardsStudy() {
     setFlipped(false);
     setCounts({ again: 0, hard: 0, good: 0 });
     setScreen("study");
-  }, [materialId]);
+  }, [materialId, router, supabase]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    (async () => { await load(); })();
+  }, [load]);
 
   async function generate() {
     setGenerating(true);

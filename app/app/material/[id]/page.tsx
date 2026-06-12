@@ -209,6 +209,8 @@ export default function MaterialPage() {
   const [generatingCards, setGeneratingCards] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [shareToggling, setShareToggling] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -236,28 +238,13 @@ export default function MaterialPage() {
       setFolder(f ?? null);
     }
     setLoading(false);
-  }, [materialId]);
+  }, [materialId, router, supabase]);
 
-  useEffect(() => { load(); }, [load]);
-
-  // Auto-disparar análisis cuando el material llega con status "pending"
   useEffect(() => {
-    if (material?.analysis_status === "pending" && !analyzing) {
-      analyze();
-    }
-  }, [material?.analysis_status]);
+    (async () => { await load(); })();
+  }, [load]);
 
-  // Polling: refresca cada 3 s mientras el análisis está en vuelo
-  // (cubre el caso en que el usuario vuelve a la tab o abre en otro tab).
-  useEffect(() => {
-    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
-    if (material?.analysis_status === "processing" && !analyzing) {
-      pollRef.current = setInterval(load, 3000);
-    }
-    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
-  }, [material?.analysis_status, analyzing, load]);
-
-  async function analyze() {
+  const analyze = useCallback(async () => {
     setAnalyzing(true);
     setActionError(null);
     try {
@@ -275,7 +262,27 @@ export default function MaterialPage() {
     }
     await load();
     setAnalyzing(false);
-  }
+  }, [materialId, load]);
+
+  // Auto-disparar análisis cuando el material llega con status "pending".
+  // El ref evita re-disparos si el análisis falla y el status sigue en "pending".
+  const autoAnalyzedRef = useRef(false);
+  useEffect(() => {
+    if (material?.analysis_status === "pending" && !autoAnalyzedRef.current) {
+      autoAnalyzedRef.current = true;
+      (async () => { await analyze(); })();
+    }
+  }, [material?.analysis_status, analyze]);
+
+  // Polling: refresca cada 3 s mientras el análisis está en vuelo
+  // (cubre el caso en que el usuario vuelve a la tab o abre en otro tab).
+  useEffect(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (material?.analysis_status === "processing" && !analyzing) {
+      pollRef.current = setInterval(load, 3000);
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [material?.analysis_status, analyzing, load]);
 
   async function generateFlashcards() {
     setGeneratingCards(true);
@@ -297,6 +304,12 @@ export default function MaterialPage() {
       setActionError("Error de conexión generando flashcards.");
       setGeneratingCards(false);
     }
+  }
+
+  async function deleteMaterial() {
+    setDeleting(true);
+    await supabase.from("study_materials").delete().eq("id", materialId);
+    router.push("/app");
   }
 
   async function toggleShare() {
@@ -544,6 +557,40 @@ export default function MaterialPage() {
                 </div>
               </section>
             )}
+
+            {/* Eliminar material */}
+            <section className="mt-4 mb-10 border-t border-slate-200 pt-8">
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="text-sm text-red-500 hover:text-red-700 hover:underline transition"
+                >
+                  Eliminar este material
+                </button>
+              ) : (
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
+                  <p className="font-semibold text-red-800 text-sm mb-1">¿Eliminar este material?</p>
+                  <p className="text-xs text-red-600 mb-4">
+                    Se borrarán también todas sus flashcards. Los exámenes generados se conservan. Esta acción no se puede deshacer.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={deleteMaterial}
+                      disabled={deleting}
+                      className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50"
+                    >
+                      {deleting ? "Eliminando..." : "Sí, eliminar"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </section>
           </div>
         )}
       </div>

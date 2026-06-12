@@ -57,7 +57,7 @@ export default function CasoClinicoPage() {
       setTemas((analysis?.temas ?? []).map((t) => t.nombre));
     }
     load();
-  }, [materialId]);
+  }, [materialId, router, supabase]);
 
   useEffect(() => {
     if (screen !== "generating") return;

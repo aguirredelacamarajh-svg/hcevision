@@ -75,7 +75,7 @@ export default function BibliotecaPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [router, supabase]);
 
   // Etiquetas = temas de los análisis (las más repetidas primero)
   const tags = useMemo(() => {

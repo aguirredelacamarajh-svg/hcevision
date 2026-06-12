@@ -169,7 +169,7 @@ export default function CampusPage() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [router, supabase]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -625,6 +625,7 @@ export default function CampusPage() {
       {/* ── Panel de revisión ── */}
       {reviewExam && (
         <ReviewPanel
+          key={reviewExam.id}
           exam={reviewExam}
           folders={folders}
           attempts={attemptsByExam[reviewExam.id] ?? []}
@@ -688,8 +689,9 @@ function ReviewPanel({
   const [copied, setCopied] = useState(false);
   const [reportCounts, setReportCounts] = useState<Record<number, number>>({});
 
+  // El panel se monta con key={exam.id}, así que el estado (copied, draftTitle…)
+  // se reinicia solo al cambiar de examen.
   useEffect(() => {
-    setCopied(false);
     if (!exam.share_id) return; // migración 003 sin aplicar
     supabase
       .from("question_reports")
@@ -700,7 +702,7 @@ function ReviewPanel({
         for (const r of data ?? []) counts[r.question_index] = (counts[r.question_index] ?? 0) + 1;
         setReportCounts(counts);
       });
-  }, [exam.id]);
+  }, [exam.id, exam.share_id, supabase]);
 
   const shareUrl = exam.share_id
     ? `${typeof window !== "undefined" ? window.location.origin : ""}/compartido/${exam.share_id}`
@@ -735,7 +737,14 @@ function ReviewPanel({
     }
   }
 
-  useEffect(() => { setDraftTitle(exam.title); }, [exam.title]);
+  // Sincronizar el borrador si el título cambia desde fuera (patrón
+  // "adjusting state when a prop changes" de la doc de React)
+  const [prevTitle, setPrevTitle] = useState(exam.title);
+  if (prevTitle !== exam.title) {
+    setPrevTitle(exam.title);
+    setDraftTitle(exam.title);
+  }
+
   useEffect(() => { if (editingTitle) titleInputRef.current?.select(); }, [editingTitle]);
 
   function commitRename() {
