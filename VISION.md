@@ -84,7 +84,15 @@ de aprendizaje personalizado — estructurado, visual y acompañado.
 - ✅ Componentes compartidos extraídos a `components/`: `AppHeader` (10 páginas),
   `exam/ExamHud` (sidebar + barra móvil con dots) y `exam/QuestionCard` (pregunta en curso),
   usados por `nuevo` y `rehacer`. Tipo `ExamAnswer` unificado en `lib/types.ts`.
-- `pending`/`processing` de análisis: hoy se resuelve con recarga manual; valorar polling
-  o Supabase Realtime.
-- Persistir conversaciones del tutor y casos clínicos (hoy viven en memoria).
-- Compartir mapas conceptuales y flashcards (hoy solo exámenes).
+- ✅ Polling del análisis: `useEffect` con `setInterval(load, 3000)` mientras
+  `analysis_status === "processing"` y no hay `analyze()` en vuelo. Se limpia al cambiar
+  de estado o desmontar el componente.
+- ✅ Persistir conversaciones del tutor: tabla `material_chats` (migration 004, una fila por
+  usuario × material). Carga al montar, guarda (upsert) tras cada respuesta del asistente.
+  Botón "🗑 Limpiar" en el header borra la fila y resetea el estado local.
+- ✅ Compartir mapas y ruta de aprendizaje: columnas `is_public`/`share_id` en
+  `study_materials` (migration 005). Toggle en la página del material genera enlace
+  `/compartido/material/[shareId]` con mapa de temas interactivo (selección con detalle) y
+  ruta de aprendizaje. Visible sin cuenta.
+- Persistir casos clínicos (hoy viven en memoria).
+- Compartir flashcards (solo exámenes y materiales por ahora).

@@ -60,6 +60,8 @@ export interface StudyMaterial {
   char_count: number;
   analysis: MaterialAnalysis | null;
   analysis_status: AnalysisStatus;
+  is_public?: boolean;
+  share_id?: string;
   created_at: string;
 }
 

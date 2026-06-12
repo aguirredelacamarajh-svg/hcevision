@@ -197,6 +197,7 @@ export default function MaterialPage() {
   const materialId = params.id;
   const router = useRouter();
   const supabase = createClient();
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const [material, setMaterial] = useState<StudyMaterial | null>(null);
   const [folder, setFolder] = useState<FolderInfo | null>(null);
@@ -207,6 +208,7 @@ export default function MaterialPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [generatingCards, setGeneratingCards] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [shareToggling, setShareToggling] = useState(false);
 
   const load = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -214,7 +216,7 @@ export default function MaterialPage() {
 
     const { data: mat, error } = await supabase
       .from("study_materials")
-      .select("id, folder_id, title, source_text, char_count, analysis, analysis_status, created_at")
+      .select("id, folder_id, title, source_text, char_count, analysis, analysis_status, is_public, share_id, created_at")
       .eq("id", materialId)
       .single();
 
@@ -244,6 +246,16 @@ export default function MaterialPage() {
       analyze();
     }
   }, [material?.analysis_status]);
+
+  // Polling: refresca cada 3 s mientras el análisis está en vuelo
+  // (cubre el caso en que el usuario vuelve a la tab o abre en otro tab).
+  useEffect(() => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    if (material?.analysis_status === "processing" && !analyzing) {
+      pollRef.current = setInterval(load, 3000);
+    }
+    return () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
+  }, [material?.analysis_status, analyzing, load]);
 
   async function analyze() {
     setAnalyzing(true);
@@ -285,6 +297,15 @@ export default function MaterialPage() {
       setActionError("Error de conexión generando flashcards.");
       setGeneratingCards(false);
     }
+  }
+
+  async function toggleShare() {
+    if (!material || shareToggling) return;
+    setShareToggling(true);
+    const nextPublic = !material.is_public;
+    const { error } = await supabase.from("study_materials").update({ is_public: nextPublic }).eq("id", materialId);
+    if (!error) setMaterial({ ...material, is_public: nextPublic });
+    setShareToggling(false);
   }
 
   const analysis: MaterialAnalysis | null = material?.analysis ?? null;
@@ -343,9 +364,7 @@ export default function MaterialPage() {
                     <p className="mt-4 font-medium text-slate-700">Analizando el material...</p>
                     <p className="mt-1 text-sm text-slate-400">Puede tardar hasta un minuto</p>
                     {material.analysis_status === "processing" && !analyzing && (
-                      <button onClick={load} className="mt-4 text-sm text-blue-600 underline underline-offset-2">
-                        Actualizar estado
-                      </button>
+                      <p className="mt-3 text-xs text-slate-400">Actualizando automáticamente...</p>
                     )}
                   </>
                 ) : (
@@ -415,6 +434,53 @@ export default function MaterialPage() {
                 </p>
               </Link>
             </div>
+
+            {/* Compartir material */}
+            {material.share_id && (
+              <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">Compartir este material</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {material.is_public
+                        ? "Cualquiera con el enlace puede ver el mapa y la ruta de aprendizaje."
+                        : "Activa el enlace para compartir el mapa conceptual y la ruta."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={toggleShare}
+                    disabled={shareToggling}
+                    className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold border-2 transition ${
+                      material.is_public
+                        ? "border-green-400 bg-green-50 text-green-700 hover:bg-green-100"
+                        : "border-slate-300 bg-white text-slate-600 hover:border-blue-400"
+                    } disabled:opacity-50`}
+                  >
+                    {shareToggling ? "..." : material.is_public ? "✓ Compartido" : "Compartir"}
+                  </button>
+                </div>
+                {material.is_public && (
+                  <div className="mt-4 flex items-center gap-2">
+                    <input
+                      readOnly
+                      value={`${typeof window !== "undefined" ? window.location.origin : ""}/compartido/material/${material.share_id}`}
+                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 font-mono truncate focus:outline-none"
+                    />
+                    <button
+                      onClick={() => {
+                        if (typeof window !== "undefined")
+                          navigator.clipboard.writeText(
+                            `${window.location.origin}/compartido/material/${material.share_id}`
+                          );
+                      }}
+                      className="shrink-0 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Mapa conceptual */}
             {analysis && (

@@ -18,6 +18,7 @@ export default function TutorPage() {
 
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [materialTitle, setMaterialTitle] = useState("");
   const [temas, setTemas] = useState<string[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -31,15 +32,18 @@ export default function TutorPage() {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
-      const { data } = await supabase
-        .from("study_materials")
-        .select("title, analysis")
-        .eq("id", materialId)
-        .single();
+      setUserId(user.id);
+
+      const [{ data }, { data: chatData }] = await Promise.all([
+        supabase.from("study_materials").select("title, analysis").eq("id", materialId).single(),
+        supabase.from("material_chats").select("messages").eq("user_id", user.id).eq("material_id", materialId).maybeSingle(),
+      ]);
+
       if (!data) { setNotFound(true); setLoading(false); return; }
       setMaterialTitle(data.title);
       const analysis = data.analysis as MaterialAnalysis | null;
       setTemas((analysis?.temas ?? []).map((t) => t.nombre).slice(0, 4));
+      if (chatData?.messages) setMessages(chatData.messages as ChatMessage[]);
       setLoading(false);
     }
     load();
@@ -87,6 +91,12 @@ export default function TutorPage() {
       if (!acc.trim()) {
         setError("El tutor no pudo responder. Inténtalo de nuevo.");
         setMessages(history);
+      } else if (userId) {
+        const finalMessages = [...history, { role: "assistant" as const, content: acc }];
+        supabase.from("material_chats").upsert(
+          { user_id: userId, material_id: materialId, messages: finalMessages, updated_at: new Date().toISOString() },
+          { onConflict: "user_id,material_id" }
+        );
       }
     } catch {
       setError("Error de conexión con el tutor. Inténtalo de nuevo.");
@@ -105,7 +115,21 @@ export default function TutorPage() {
 
   return (
     <main className="h-dvh text-slate-900 flex flex-col">
-      <AppHeader backHref={`/app/material/${materialId}`} backLabel="← Material" />
+      <AppHeader
+        backHref={`/app/material/${materialId}`}
+        backLabel="← Material"
+        right={messages.length > 0 && !streaming ? (
+          <button
+            onClick={() => {
+              setMessages([]);
+              if (userId) supabase.from("material_chats").delete().eq("user_id", userId).eq("material_id", materialId);
+            }}
+            className="text-xs text-slate-400 hover:text-red-500 transition"
+          >
+            🗑 Limpiar
+          </button>
+        ) : undefined}
+      />
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
